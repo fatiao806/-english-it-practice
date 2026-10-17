@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>我的排班日历</title>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    background: #f3f5f9;
+    color: #172338;
+    margin: 0;
+    padding: 20px;
+  }
+  main { max-width: 900px; margin: auto; }
+  h1 { margin-bottom: 8px; }
+  p { line-height: 1.7; }
+  input {
+    font: inherit;
+    padding: 10px;
+    border: 1px solid #adb8ca;
+    border-radius: 10px;
+  }
+  #calendar {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 20px;
+  }
+  .weekday { text-align: center; padding: 8px 0; }
+  .day {
+    background: white;
+    border-radius: 10px;
+    min-height: 75px;
+    padding: 8px 3px;
+    text-align: center;
+    border: 1px solid #dce2eb;
+  }
+  .day strong { display: block; margin-bottom: 10px; }
+  .shift0 { background: #fff0cf; }
+  .shift1 { background: #dceeff; }
+  .shift2 { background: #e9e1ff; }
+  .shift3 { background: #f0f2f5; }
+  .today { outline: 3px solid #172338; outline-offset: -3px; }
+  small { display: block; margin-top: 20px; line-height: 1.8; }
+</style>
+</head>
+<body>
+<main>
+  <h1>我的排班日历</h1>
+  <p>7天早班 → 7天中班 → 7天夜班 → 休息7天</p>
+
+  <label for="month">查看月份：</label>
+  <input id="month" type="month">
+
+  <div id="calendar"></div>
+
+  <p>
+    早班：10:00—18:00<br>
+    中班：18:00—次日02:00<br>
+    夜班：02:00—10:00
+  </p>
+  <small>
+    按上班开始日期标记，深色边框表示今天。<br>
+    以2026年10月12日为本轮第一个早班日推算。
+    临时调班、加班尚未计入。
+  </small>
+</main>
+
+<script>
+const monthInput = document.getElementById("month");
+const calendar = document.getElementById("calendar");
+const names = ["早班", "中班", "夜班", "休息"];
+const anchor = Date.UTC(2026, 9, 12);
+const dayLength = 86400000;
+
+// 用北京时间确定今天。
+const parts = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Asia/Shanghai",
+  year: "numeric", month: "2-digit", day: "2-digit"
+}).formatToParts(new Date());
+
+const value = type => parts.find(p => p.type === type).value;
+const today = `${value("year")}-${value("month")}-${value("day")}`;
+monthInput.value = today.slice(0, 7);
+
+function render() {
+  if (!monthInput.value) return;
+  const [year, month] = monthInput.value.split("-").map(Number);
+  calendar.replaceChildren();
+
+  for (const name of ["一", "二", "三", "四", "五", "六", "日"]) {
+    const cell = document.createElement("div");
+    cell.className = "weekday";
+    cell.textContent = name;
+    calendar.append(cell);
+  }
+
+  const firstDay = new Date(Date.UTC(year, month - 1, 1));
+  const blanks = (firstDay.getUTCDay() + 6) % 7;
+  for (let i = 0; i < blanks; i++) {
+    calendar.append(document.createElement("div"));
+  }
+
+  const count = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  for (let day = 1; day <= count; day++) {
+    const date = Date.UTC(year, month - 1, day);
+    const elapsed = Math.round((date - anchor) / dayLength);
+    const cycleDay = ((elapsed % 28) + 28) % 28;
+    const shift = Math.floor(cycleDay / 7);
+    const dateText = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+    const cell = document.createElement("div");
+    cell.className = `day shift${shift}`;
+    if (dateText === today) cell.classList.add("today");
+    cell.innerHTML = `<strong>${day}</strong>${names[shift]}`;
+    calendar.append(cell);
+  }
+}
+
+monthInput.addEventListener("change", render);
+render();
+</script>
+</body>
+</html>
